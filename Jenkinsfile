@@ -7,8 +7,7 @@ pipeline {
         ACR_SERVER = 'docker123456789.azurecr.io'
         ACR_USERNAME = credentials('ACR')
         ACR_PASSWORD = credentials('ACR')
-        IMAGE_TAG = "nginx:${BUILD_NUMBER}"
-        ACR_IMAGE_TAG = "${ACR_SERVER}/nginx:${BUILD_NUMBER}"
+        DOCKER_IMAGE_TAG = 'latest' // Set the tag you want to use for the latest build
     }
     
     stages { 
@@ -20,7 +19,7 @@ pipeline {
         
         stage('Build docker image') {
             steps {  
-                sh "docker build -t ${IMAGE_TAG} ."
+                sh "docker build -t $ACR_SERVER/nginx:$BUILD_NUMBER ."
             }
         }
         
@@ -31,11 +30,10 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'ACR', usernameVariable: 'ACR_USERNAME', passwordVariable: 'ACR_PASSWORD')]) {
-                        // Log into ACR using Docker CLI with username and password from credentials
                         sh """
                             echo \${ACR_PASSWORD} | docker login -u \${ACR_USERNAME} --password-stdin \${ACR_SERVER}
-                            docker tag ${IMAGE_TAG} ${ACR_IMAGE_TAG}
-                            docker push ${ACR_IMAGE_TAG}
+                            docker tag $ACR_SERVER/nginx:$BUILD_NUMBER $ACR_SERVER/nginx:$DOCKER_IMAGE_TAG
+                            docker push $ACR_SERVER/nginx:$DOCKER_IMAGE_TAG
                         """
                     }
                 }
