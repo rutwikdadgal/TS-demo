@@ -7,6 +7,8 @@ pipeline {
         ACR_SERVER = 'docker123456789.azurecr.io'
         ACR_USERNAME = credentials('ACR')
         ACR_PASSWORD = credentials('ACR')
+        IMAGE_TAG = "nginx:${BUILD_NUMBER}"
+        ACR_IMAGE_TAG = "${ACR_SERVER}/nginx:${BUILD_NUMBER}"
     }
     
     stages { 
@@ -18,9 +20,10 @@ pipeline {
         
         stage('Build docker image') {
             steps {  
-                sh "docker build -t $ACR_SERVER/nginx:$BUILD_NUMBER ."
+                sh "docker build -t ${IMAGE_TAG} ."
             }
         }
+        
         stage('Login to ACR and push image') {
             environment {
                 DOCKER_CLI_HOME = "${workspace}"
@@ -28,9 +31,11 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'ACR', usernameVariable: 'ACR_USERNAME', passwordVariable: 'ACR_PASSWORD')]) {
+                        // Log into ACR using Docker CLI with username and password from credentials
                         sh """
                             echo \${ACR_PASSWORD} | docker login -u \${ACR_USERNAME} --password-stdin \${ACR_SERVER}
-                            docker push ${ACR_SERVER}/nginx:${BUILD_NUMBER}
+                            docker tag ${IMAGE_TAG} ${ACR_IMAGE_TAG}
+                            docker push ${ACR_IMAGE_TAG}
                         """
                     }
                 }
