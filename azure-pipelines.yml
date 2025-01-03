@@ -1,0 +1,90 @@
+trigger:
+  branches:
+    include:
+      - master
+      
+# Agent Pool and Agent Name
+pool:
+  name: Default
+  demands:
+  - Agent.Name -equals azureuser
+
+variables:
+  # Container registry service connection
+  # imageRepository: 'test'
+  # containerRegistry: 'testdevcrr.azurecr.io'
+  # dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+  latestTag: 'latest'
+
+stages:
+
+# Stage 1: Code Checkout
+- stage: CodeCheckout
+  displayName: 'Code Checkout'
+  jobs:
+  - job: Checkout_Code
+    displayName: 'Checkout Code'
+    steps:
+    - checkout: self
+
+# Stage 2: Docker Login
+- stage: DockerLogin
+  displayName: 'Docker Login'
+  jobs:
+  - job: Login
+    displayName: 'Login to ACR'
+    steps:
+    - task: Docker@2
+      displayName: 'Login to ACR'
+      inputs:
+        command: login
+        containerRegistry: 'DevCR_ServiceConnections'
+
+# Stage 3: Docker Build
+- stage: DockerBuild
+  displayName: 'Docker Build'
+  jobs:
+  - job: Build
+    displayName: 'Build Docker Image'
+    steps:
+    - task: Docker@2
+      displayName: 'Docker Build'
+      inputs:
+        containerRegistry: 'DevCR_ServiceConnections'
+        repository: 'test'
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        tags: |
+          $(Build.BuildId)
+          $(latestTag)
+
+# Stage 4: Docker Push
+- stage: DockerPush
+  displayName: 'Docker Push'
+  jobs:
+  - job: Push
+    displayName: 'Push Docker Image'
+    steps:
+    - task: Docker@2
+      displayName: 'Docker Push'
+      inputs:
+        containerRegistry: 'DevCR_ServiceConnections'
+        repository: 'test'
+        command: 'push'
+        tags: |
+          $(Build.BuildId)
+          $(latestTag)
+
+# Stage 5: Publish Build Artifacts
+- stage: PublishArtifacts
+  displayName: 'Publish Build Artifacts'
+  jobs:
+  - job: Publish
+    displayName: 'Publish Build Artifacts'
+    steps:
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: $(Build.SourcesDirectory)
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
